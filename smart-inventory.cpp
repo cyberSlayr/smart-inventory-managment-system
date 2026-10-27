@@ -816,6 +816,116 @@ void showDashboard()
     cout << "====================================\n";
 }
 
+void searchProduct()
+{
+    int choice;
+
+    cout << "\n===== ADVANCED PRODUCT SEARCH =====\n";
+    cout << "1. Search by Product ID\n";
+    cout << "2. Search by Product Name\n";
+    cout << "3. Search by Category\n";
+    cout << "4. Show Low Stock Products\n";
+    cout << "Enter your choice: ";
+    cin >> choice;
+
+    string query;
+
+    if (choice == 1)
+    {
+        int id;
+
+        cout << "Enter Product ID: ";
+        cin >> id;
+
+        query = "SELECT * FROM products WHERE product_id = "
+                + to_string(id);
+    }
+    else if (choice == 2 || choice == 3)
+    {
+        string searchText;
+
+        cin.ignore(10000, '\n');
+
+        if (choice == 2)
+            cout << "Enter Product Name: ";
+        else
+            cout << "Enter Category: ";
+
+        getline(cin, searchText);
+
+        // Safely handle special characters in the search text
+        vector<char> escaped(searchText.length() * 2 + 1);
+
+        unsigned long length = mysql_real_escape_string(
+            conn,
+            escaped.data(),
+            searchText.c_str(),
+            searchText.length()
+        );
+
+        string safeText(escaped.data(), length);
+
+        if (choice == 2)
+        {
+            query = "SELECT * FROM products WHERE name LIKE '%"
+                    + safeText + "%'";
+        }
+        else
+        {
+            query = "SELECT * FROM products WHERE category LIKE '%"
+                    + safeText + "%'";
+        }
+    }
+    else if (choice == 4)
+    {
+        query = "SELECT * FROM products WHERE quantity <= 5";
+    }
+    else
+    {
+        cout << "Invalid choice!\n";
+        return;
+    }
+
+    // Run the search in MySQL
+    if (mysql_query(conn, query.c_str()) != 0)
+    {
+        cout << "Search failed: " << mysql_error(conn) << endl;
+        return;
+    }
+
+    MYSQL_RES* result = mysql_store_result(conn);
+
+    if (result == nullptr)
+    {
+        cout << "Could not read search results.\n";
+        return;
+    }
+
+    MYSQL_ROW row;
+    bool found = false;
+
+    cout << "\n===== SEARCH RESULTS =====\n";
+
+    while ((row = mysql_fetch_row(result)) != nullptr)
+    {
+        found = true;
+
+        cout << "Product ID : " << row[0] << endl;
+        cout << "Name       : " << row[1] << endl;
+        cout << "Category   : " << row[2] << endl;
+        cout << "Price      : Rs. " << row[3] << endl;
+        cout << "Quantity   : " << row[4] << endl;
+        cout << "--------------------------\n";
+    }
+
+    if (!found)
+    {
+        cout << "No matching products found.\n";
+    }
+
+    mysql_free_result(result);
+}
+
 void viewSalesHistory()
 {
     string query =
