@@ -765,6 +765,57 @@ void lowStockAlert()
 
     mysql_free_result(result);
 }
+
+void showDashboard()
+{
+    cout << "\n====================================\n";
+    cout << "       INVENTORY DASHBOARD\n";
+    cout << "====================================\n";
+
+    // SQL query to calculate inventory statistics
+    string query =
+        "SELECT COUNT(*), "
+        "COALESCE(SUM(quantity), 0), "
+        "COALESCE(SUM(CASE WHEN quantity <= 5 "
+        "THEN 1 ELSE 0 END), 0), "
+        "COALESCE(SUM(price * quantity), 0) "
+        "FROM products";
+
+    // Execute the query
+    if (mysql_query(conn, query.c_str()) != 0)
+    {
+        cout << "Error loading dashboard: "
+             << mysql_error(conn) << endl;
+        return;
+    }
+
+    // Get the query result
+    MYSQL_RES* result = mysql_store_result(conn);
+
+    if (result == nullptr)
+    {
+        cout << "Could not get dashboard data.\n";
+        return;
+    }
+
+    // Read the calculated values
+    MYSQL_ROW row = mysql_fetch_row(result);
+
+    if (row != nullptr)
+    {
+        cout << "Total Products       : " << row[0] << endl;
+        cout << "Total Units in Stock : " << row[1] << endl;
+        cout << "Low Stock Products   : " << row[2] << endl;
+        cout << "Total Stock Value    : Rs. "
+             << row[3] << endl;
+    }
+
+    // Free the result from memory
+    mysql_free_result(result);
+
+    cout << "====================================\n";
+}
+
 void viewSalesHistory()
 {
     string query =
