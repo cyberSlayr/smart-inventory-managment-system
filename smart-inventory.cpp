@@ -790,7 +790,7 @@ void showDashboard()
     }
 
     // Get the query result
-    MYSQL_RES* result = mysql_store_result(conn);
+    MYSQL_RES *result = mysql_store_result(conn);
 
     if (result == nullptr)
     {
@@ -816,6 +816,156 @@ void showDashboard()
     cout << "====================================\n";
 }
 
+void salesAnalyticsDashboard()
+{
+    cout << "\n========================================\n";
+    cout << "       SALES ANALYTICS DASHBOARD\n";
+    cout << "========================================\n";
+
+    MYSQL_RES *result;
+    MYSQL_ROW row;
+
+    // 1. Today's number of sales
+    string query =
+        "SELECT COUNT(*) FROM sales "
+        "WHERE sale_date >= CURDATE() "
+        "AND sale_date < CURDATE() + INTERVAL 1 DAY";
+
+    if (mysql_query(conn, query.c_str()) != 0)
+    {
+        cout << "Error: " << mysql_error(conn) << endl;
+        return;
+    }
+
+    result = mysql_store_result(conn);
+
+    if (result == nullptr)
+    {
+        cout << "Could not read today's sales.\n";
+        return;
+    }
+
+    row = mysql_fetch_row(result);
+
+    cout << "\n1. TODAY'S SALES\n";
+    cout << "Number of sales: " << row[0] << endl;
+
+    mysql_free_result(result);
+
+    // 2. Today's revenue
+    query =
+        "SELECT COALESCE(SUM(total_amount), 0) FROM sales "
+        "WHERE sale_date >= CURDATE() "
+        "AND sale_date < CURDATE() + INTERVAL 1 DAY";
+
+    if (mysql_query(conn, query.c_str()) != 0)
+    {
+        cout << "Error: " << mysql_error(conn) << endl;
+        return;
+    }
+
+    result = mysql_store_result(conn);
+
+    if (result == nullptr)
+    {
+        cout << "Could not read today's revenue.\n";
+        return;
+    }
+
+    row = mysql_fetch_row(result);
+
+    cout << "\n2. TODAY'S REVENUE\n";
+    cout << "Revenue: Rs. " << row[0] << endl;
+
+    mysql_free_result(result);
+
+    // 3. Best-selling products
+    query =
+        "SELECT p.name, SUM(s.quantity_sold) AS total_sold "
+        "FROM sales s "
+        "JOIN products p ON s.product_id = p.product_id "
+        "GROUP BY p.product_id, p.name "
+        "ORDER BY total_sold DESC "
+        "LIMIT 5";
+
+    if (mysql_query(conn, query.c_str()) != 0)
+    {
+        cout << "Error: " << mysql_error(conn) << endl;
+        return;
+    }
+
+    result = mysql_store_result(conn);
+
+    if (result == nullptr)
+    {
+        cout << "Could not read best-selling products.\n";
+        return;
+    }
+
+    cout << "\n3. TOP 5 BEST-SELLING PRODUCTS\n";
+
+    bool found = false;
+
+    while ((row = mysql_fetch_row(result)) != nullptr)
+    {
+        found = true;
+
+        cout << "Product: " << row[0]
+             << " | Units Sold: " << row[1] << endl;
+    }
+
+    if (!found)
+    {
+        cout << "No sales recorded yet.\n";
+    }
+
+    mysql_free_result(result);
+
+    // 4. Monthly sales for the current year
+    query =
+        "SELECT MONTH(sale_date), "
+        "DATE_FORMAT(sale_date, '%b'), "
+        "SUM(total_amount) "
+        "FROM sales "
+        "WHERE YEAR(sale_date) = YEAR(CURDATE()) "
+        "GROUP BY MONTH(sale_date), DATE_FORMAT(sale_date, '%b') "
+        "ORDER BY MONTH(sale_date)";
+
+    if (mysql_query(conn, query.c_str()) != 0)
+    {
+        cout << "Error: " << mysql_error(conn) << endl;
+        return;
+    }
+
+    result = mysql_store_result(conn);
+
+    if (result == nullptr)
+    {
+        cout << "Could not read monthly sales.\n";
+        return;
+    }
+
+    cout << "\n4. MONTHLY SALES (CURRENT YEAR)\n";
+
+    found = false;
+
+    while ((row = mysql_fetch_row(result)) != nullptr)
+    {
+        found = true;
+
+        cout << row[1] << " : Rs. " << row[2] << endl;
+    }
+
+    if (!found)
+    {
+        cout << "No sales recorded this year.\n";
+    }
+
+    mysql_free_result(result);
+
+    cout << "\n========================================\n";
+}
+
 void searchProduct()
 {
     int choice;
@@ -837,8 +987,7 @@ void searchProduct()
         cout << "Enter Product ID: ";
         cin >> id;
 
-        query = "SELECT * FROM products WHERE product_id = "
-                + to_string(id);
+        query = "SELECT * FROM products WHERE product_id = " + to_string(id);
     }
     else if (choice == 2 || choice == 3)
     {
@@ -860,20 +1009,17 @@ void searchProduct()
             conn,
             escaped.data(),
             searchText.c_str(),
-            searchText.length()
-        );
+            searchText.length());
 
         string safeText(escaped.data(), length);
 
         if (choice == 2)
         {
-            query = "SELECT * FROM products WHERE name LIKE '%"
-                    + safeText + "%'";
+            query = "SELECT * FROM products WHERE name LIKE '%" + safeText + "%'";
         }
         else
         {
-            query = "SELECT * FROM products WHERE category LIKE '%"
-                    + safeText + "%'";
+            query = "SELECT * FROM products WHERE category LIKE '%" + safeText + "%'";
         }
     }
     else if (choice == 4)
@@ -893,7 +1039,7 @@ void searchProduct()
         return;
     }
 
-    MYSQL_RES* result = mysql_store_result(conn);
+    MYSQL_RES *result = mysql_store_result(conn);
 
     if (result == nullptr)
     {
@@ -1005,7 +1151,9 @@ int main()
         cout << "11. Sort Products\n";
         cout << "11. Sort Products\n";
         cout << "12. View Sales History\n";
-        cout << "13. Exit\n";
+        cout << "13. Inventory Dashboard\n";
+        cout << "14. Sales Analytics Dashboard\n";
+        cout << "15. Exit\n";
 
         cout << "Enter your choice: ";
         cin >> choice;
@@ -1061,8 +1209,15 @@ int main()
             break;
 
         case 13:
-            cout << "\nThank you for using Smart Inventory Management System!\n";
+            showDashboard();
             break;
+        case 14:
+            salesAnalyticsDashboard();
+            break;
+
+        case 15:
+            cout << "Exiting program...\n";
+            return 0;
         default:
             cout << "\nInvalid Choice! Please try again.\n";
         }
